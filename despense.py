@@ -23,8 +23,11 @@ drawer = [chip_addr[0],
 	chip_addr[6]]
 
 #-----Componenet address assignment-----#
-Bank = [0x12,0x13,0x14,0x15,0x16] #PCA9698DGG has 5 banks with 8 I/O each
-GPIO = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80]
+r_addr     = [0x00,0x01,0x02,0x03,0x04] 						#Input Port registers (address 00h to 04h) 
+conf_addr  = [0x18,0x19,0x1A,0x1B,0x1C]							#I/O Configuration registers
+rw_addr    = [0x88,0x89,0x8A,0x8B,0x8C] 						#RW Command
+Bank       = [rw_addr[0],rw_addr[1],rw_addr[2],r_addr[3],r_addr[4]]
+GPIO 	   = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80]
 
 #Motor addresses
 motor = [[Bank[0],GPIO[0]],
@@ -66,24 +69,25 @@ eos_s = [[Bank[2],GPIO[0]],
         [Bank[3],GPIO[0]],
         [Bank[3],GPIO[1]],
         [Bank[3],GPIO[2]],
-#        [Bank[3],GPIO[3]]]
-	[Bank[1],GPIO[7]]]
+        [Bank[3],GPIO[3]]]
 
 #beam Sensor
-#beam_s = [Bank[3],GPIO[3]]
-beam_s = [Bank[1],GPIO[6]]
+beam_s = [Bank[4],GPIO[0]]
+
+drawerID=0
+motorID=8
+siloID=motorID
+
 
 
 #####-----set Bank for input and  output-----##### 
 #for addr in (drawer):
 for addr in ([drawer[0]]): # remove after testing
-	bus.write_byte_data(addr,0x00,0x00) # Set all of BankA pins to output
-#	bus.write_byte_data(addr,0x01,0x00) # Set all of BankB pins to output
-#	bus.write_byte_data(addr,0x01,beam_s[1]) #For Testing, remove later, input pin for beam testing 
-	bus.write_byte_data(addr,0x01,0xC0) #For Testing, remove later, input pin for beam testing 
-	bus.write_byte_data(addr,0x02,0X00) # Set all of BankC pins to output
-        bus.write_byte_data(addr,0x03,0XFF) # Set all of BankD pins to Input
-	bus.write_byte_data(addr,0x04,0XFF) # Set all of BankE pins to Input
+	bus.write_byte_data(addr,conf_addr[0],0x00) 
+	bus.write_byte_data(addr,conf_addr[1],0x00)
+	bus.write_byte_data(addr,conf_addr[2],0x00)
+	bus.write_byte_data(addr,conf_addr[3],0x00) 
+	bus.write_byte_data(addr,conf_addr[4],0x00)
 
 #####-----Motor Operation-----#####
 #Status of The  Motor
@@ -110,15 +114,15 @@ def beam_status(drawerID):
 #Status of end of silo Sensor
 def silo_status(drawerID,motorID):
         return (bus.read_byte_data(drawer[drawerID],eos_s[siloID][0]) & eos_s[siloID][1])
+
+print beam_status(drawerID)
+print silo_status(drawerID,motorID)
 	
 ####----Main logic-----#####
-drawerID=0
-motorID=11
-siloID=motorID
 
 while True:
 	try:
-		if (beam_status(drawerID) == 0) or (silo_status(drawerID,siloID) == 0):
+		if (beam_status(drawerID) == 0):# or (silo_status(drawerID,siloID) == 0):
 			stop_motor(drawerID,motorID)
 			break
 		else:
