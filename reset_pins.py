@@ -14,7 +14,7 @@ bus = smbus.SMBus(1) #define bus address(for rev its 1)
 for bank in range(24,29): # remove after testing
 	try:
         	print bus.read_byte_data(0x20,bank)
-		bus.write_byte_data(0x20,bank,0xFF) # Set all of BankA pins to output
+		bus.write_byte_data(0x20,bank,0x00) # Set all of BankA pins to output
 		print bus.read_byte_data(0x20,0x00)
 	except:
 		print "error",bank
@@ -33,4 +33,3 @@ for bank in range(0x00,0x05): # remove after testing
                 print bus.read_byte_data(0x20,bank),bank
         except:
                 print "error",bank
-

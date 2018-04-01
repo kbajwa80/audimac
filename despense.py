@@ -58,25 +58,28 @@ tof_s = [[Bank[1],GPIO[4]],
         [Bank[2],GPIO[7]]]
 
 #End of silo address
-eos_s = [[Bank[2],GPIO[0]],
-        [Bank[2],GPIO[1]],
-        [Bank[2],GPIO[2]],
-        [Bank[2],GPIO[3]],
-        [Bank[2],GPIO[4]],
-        [Bank[2],GPIO[5]],
-        [Bank[2],GPIO[6]],
-        [Bank[2],GPIO[7]],
-        [Bank[3],GPIO[0]],
-        [Bank[3],GPIO[1]],
-        [Bank[3],GPIO[2]],
-        [Bank[3],GPIO[3]]]
+eos_s = [[Bank[4],GPIO[7]],
+        [Bank[4],GPIO[6]],
+        [Bank[4],GPIO[5]],
+        [Bank[4],GPIO[4]],
+        [Bank[4],GPIO[3]],
+        [Bank[4],GPIO[2]],
+        [Bank[4],GPIO[1]],
+        [Bank[4],GPIO[0]],
+        [Bank[3],GPIO[7]],
+        [Bank[3],GPIO[6]],
+        [Bank[3],GPIO[5]],
+        [Bank[3],GPIO[4]]]
 
 #beam Sensor
-beam_s = [Bank[4],GPIO[0]]
+beam_s = [Bank[3],GPIO[3]]
 
 drawerID=0
-motorID=8
+motorID=1
 siloID=motorID
+
+print eos_s[siloID][1]
+print motor[motorID][1]
 
 
 
@@ -86,8 +89,8 @@ for addr in ([drawer[0]]): # remove after testing
 	bus.write_byte_data(addr,conf_addr[0],0x00) 
 	bus.write_byte_data(addr,conf_addr[1],0x00)
 	bus.write_byte_data(addr,conf_addr[2],0x00)
-	bus.write_byte_data(addr,conf_addr[3],0x00) 
-	bus.write_byte_data(addr,conf_addr[4],0x00)
+	bus.write_byte_data(addr,conf_addr[3],0xFF) 
+	bus.write_byte_data(addr,conf_addr[4],0xFF)
 
 #####-----Motor Operation-----#####
 #Status of The  Motor
@@ -98,6 +101,7 @@ def motor_status(drawerID,motorID):
 def run_motor(drawerID,motorID):
 	if (motor_status(drawerID,motorID) & motor[motorID][1]):
 		print "Active motor detected:Exiting"	
+		time.sleep(1)
 	else:
 		print "Activating Motor"
 		bus.write_byte_data(drawer[drawerID],motor[motorID][0],motor[motorID][1])
@@ -112,21 +116,24 @@ def beam_status(drawerID):
 	return (bus.read_byte_data(drawer[drawerID],beam_s[0]) & beam_s[1])
 
 #Status of end of silo Sensor
-def silo_status(drawerID,motorID):
+def silo_status(drawerID,siloID):
         return (bus.read_byte_data(drawer[drawerID],eos_s[siloID][0]) & eos_s[siloID][1])
 
 print beam_status(drawerID)
-print silo_status(drawerID,motorID)
+print silo_status(drawerID,siloID)
+
+stop_motor(drawerID,motorID)
 	
 ####----Main logic-----#####
 
 while True:
 	try:
-		if (beam_status(drawerID) == 0):# or (silo_status(drawerID,siloID) == 0):
+		if (beam_status(drawerID) == 0) and (silo_status(drawerID,siloID) == 0):
+			run_motor(drawerID,motorID)
+			print "runningmotor"
+		else:
 			stop_motor(drawerID,motorID)
 			break
-		else:
-			run_motor(drawerID,motorID)
 	except (KeyboardInterrupt):
 		print "Exiting"
 		break
