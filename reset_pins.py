@@ -22,7 +22,7 @@ for bank in range(24,29): # remove after testing
 #-----Set Output pin-----#
 for bank in range(136,141): # remove after testing
         try:
-                bus.write_byte_data(0x20,bank,0x00) # Set all of BankA pins to output
+                bus.write_byte_data(0x20,bank,0xFF) # Set all of BankA pins to output
                 print bus.read_byte_data(0x20,bank)
         except:
                 print "error",bank
