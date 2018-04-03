@@ -10,8 +10,12 @@ from sys import argv
 #-----Pi Bus Address-----#
 bus = smbus.SMBus(1) #define bus address(for rev its 1)
 
-#-----Drawer address assignement-----#
+#-----Chip address assignement-----#
+#Drawers
 chip_addr = [0x20,0x21,0x22,0x23,0x24,0x25,0x26] #I2C address of different chips (Each drawer has its own i2c address)
+
+#Time of flight sensor
+tof_addr  = 0x29				 # Defult VL53L0X address 
 
 #Drawer addresses
 drawer = [chip_addr[0],
@@ -27,8 +31,8 @@ r_addr     = [0x00,0x01,0x02,0x03,0x04] 						#Input Port registers (address 00h
 conf_addr  = [0x18,0x19,0x1A,0x1B,0x1C]							#I/O Configuration registers
 rw_addr    = [0x88,0x89,0x8A,0x8B,0x8C] 						#RW Command
 Bank       = [rw_addr[0],rw_addr[1],rw_addr[2],r_addr[3],r_addr[4]]
-GPIO 	   = [0xFE,0xFD,0xFB,0xF7,0xEF,0xDF,0xBF,0x7F]
-RGPIO 	   = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80]
+GPIO 	   = [0xFE,0xFD,0xFB,0xF7,0xEF,0xDF,0xBF,0x7F,0x0E,0x0D,0x0B,0x07]
+RGPIO 	   = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1F,0x2F,0x4F,0x8F]
 
 #Motor addresses
 motor = [[Bank[0],GPIO[0],RGPIO[0]],
@@ -39,24 +43,24 @@ motor = [[Bank[0],GPIO[0],RGPIO[0]],
 	[Bank[0],GPIO[5],RGPIO[5]],
 	[Bank[0],GPIO[6],RGPIO[6]],
 	[Bank[0],GPIO[7],RGPIO[7]],
-	[Bank[1],GPIO[0],RGPIO[0]],
-	[Bank[1],GPIO[1],RGPIO[1]],
-	[Bank[1],GPIO[2],RGPIO[2]],
-	[Bank[1],GPIO[3],RGPIO[3]]]
+	[Bank[1],GPIO[8],RGPIO[0]],
+	[Bank[1],GPIO[9],RGPIO[1]],
+	[Bank[1],GPIO[10],RGPIO[2]],
+	[Bank[1],GPIO[11],RGPIO[3]]]
 
 #TOF reset address
-tof_s = [[Bank[1],GPIO[4]],
-        [Bank[1],GPIO[5]],
-        [Bank[1],GPIO[6]],
-        [Bank[1],GPIO[7]],
-        [Bank[2],GPIO[0]],
-        [Bank[2],GPIO[1]],
-        [Bank[2],GPIO[2]],
-        [Bank[2],GPIO[3]],
-	[Bank[2],GPIO[4]],
-        [Bank[2],GPIO[5]],
-        [Bank[2],GPIO[6]],
-        [Bank[2],GPIO[7]]]
+tof_s = [[Bank[1],RGPIO[8]],
+        [Bank[1],RGPIO[9]],
+        [Bank[1],RGPIO[10]],
+        [Bank[1],RGPIO[11]],
+        [Bank[2],RGPIO[0]],
+        [Bank[2],RGPIO[1]],
+        [Bank[2],RGPIO[2]],
+        [Bank[2],RGPIO[3]],
+	[Bank[2],RGPIO[4]],
+        [Bank[2],RGPIO[5]],
+        [Bank[2],RGPIO[6]],
+        [Bank[2],RGPIO[7]]]
 
 #End of silo address
 eos_s = [[Bank[4],RGPIO[7]],
@@ -79,6 +83,7 @@ beam_s = [Bank[3],RGPIO[3]]
 drawerID=0
 motorID=(int(argv[(1)]) -1)	# Sensor to Activate
 siloID=motorID
+tofID=motorID
 ###############################
 
 #####-----set Bank for input and  output-----##### 
@@ -90,9 +95,38 @@ for addr in ([drawer[0]]): # remove after testing
 	bus.write_byte_data(addr,conf_addr[3],0xFF) 
 	bus.write_byte_data(addr,conf_addr[4],0xFF)
 
+#####-----Sensor Operation(input)-----#####
+
+#Status of beam Sensor
+def beam_status(drawerID):
+        return (bus.read_byte_data(drawer[drawerID],beam_s[0]) & beam_s[1])
+
+#Status of end of silo Sensor
+def silo_status(drawerID,siloID):
+        return (bus.read_byte_data(drawer[drawerID],eos_s[siloID][0]) & eos_s[siloID][1])
+
+#####-----tof Operation-----#####
+#Setup for xreset
+def reset_tof():
+        for tof in (tof_s):
+                if tof[0] == Bank[1]:
+                        bus.write_byte_data(drawer[drawerID],tof[0],0x0F)
+                        time.sleep(.1)
+                else:
+                        bus.write_byte_data(drawer[drawerID],tof[0],0x00)
+                        time.sleep(.1)
+def xshut_tof(tofID):
+        bus.write_byte_data(drawer[drawerID],tof_s[tofID][0],tof_s[tofID][1])
+        time.sleep(.1)
+
+
+
+
+
 
 
 #####-----Motor Operation-----#####
+
 #Status of The  Motor
 def motor_status(drawerID,motorID):
         return (bus.read_byte_data(drawer[drawerID],motor[motorID][0]))
@@ -111,22 +145,13 @@ def run_motor(drawerID,motorID):
 
 #Stop Motor
 def stop_motor(drawerID,motorID):
-        bus.write_byte_data(drawer[drawerID],motor[motorID][0],0xFF)
-	print "Stopping Motor"
+	if motor[motorID][0] == Bank[0]:
+        	bus.write_byte_data(drawer[drawerID],motor[motorID][0],0xFF)
+		print "Stopping Motor"
+	else:
+		bus.write_byte_data(drawer[drawerID],motor[motorID][0],0x0F)
+		print "Stopping Motor"
 
-#Status of beam Sensor  
-def beam_status(drawerID):
-	return (bus.read_byte_data(drawer[drawerID],beam_s[0]) & beam_s[1])
-
-#Status of end of silo Sensor
-def silo_status(drawerID,siloID):
-        return (bus.read_byte_data(drawer[drawerID],eos_s[siloID][0]) & eos_s[siloID][1])
-
-#stop_motor(drawerID,motorID)
-
-print beam_status(drawerID)
-print silo_status(drawerID,siloID)
-	
 ####----Main logic-----#####
 
 while True:
