@@ -1,6 +1,6 @@
 #! /usr/bin/python
 #Kanwar Bajwa: March 21,2018
-#This script is a test script for MCP23017 and using address 0x20 only
+#This script is a test script for PCA9698 and using address 0x20 only
 
 import smbus
 import time 
