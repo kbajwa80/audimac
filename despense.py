@@ -97,6 +97,10 @@ for addr in ([drawer[0]]): # remove after testing
 
 #####-----Sensor Operation(input)-----#####
 
+# Unmask distance 
+def makeuint16(lsb, msb):
+    return ((msb & 0xFF) << 8)  | (lsb & 0xFF)
+
 #Status of beam Sensor
 def beam_status(drawerID):
         return (bus.read_byte_data(drawer[drawerID],beam_s[0]) & beam_s[1])
@@ -111,17 +115,17 @@ def reset_tof():
         for tof in (tof_s):
                 if tof[0] == Bank[1]:
                         bus.write_byte_data(drawer[drawerID],tof[0],0x0F)
-                        time.sleep(.1)
                 else:
                         bus.write_byte_data(drawer[drawerID],tof[0],0x00)
-                        time.sleep(.1)
+
 def xshut_tof(tofID):
         bus.write_byte_data(drawer[drawerID],tof_s[tofID][0],tof_s[tofID][1])
         time.sleep(.1)
 
 
 
-
+reset_tof()
+xshut_tof(tofID)
 
 
 
@@ -134,14 +138,13 @@ def motor_status(drawerID,motorID):
 #Run Motor 
 def run_motor(drawerID,motorID):
 	if (~motor_status(drawerID,motorID) & motor[motorID][2]):
-		print (motor_status(drawerID,motorID) & motor[motorID][1])
-		print "Active motor detected:Exiting"	
-		time.sleep(.1)
+		#print (motor_status(drawerID,motorID) & motor[motorID][1])
+		#print "Active motor detected:Exiting"	
+		pass
 	else:
 	        print "Activating motor"
-		print (~motor_status(drawerID,motorID) & motor[motorID][1])
+		#print (~motor_status(drawerID,motorID) & motor[motorID][1])
 		bus.write_byte_data(drawer[drawerID],motor[motorID][0],motor[motorID][1])
-                time.sleep(.1)
 
 #Stop Motor
 def stop_motor(drawerID,motorID):
@@ -152,7 +155,7 @@ def stop_motor(drawerID,motorID):
 		bus.write_byte_data(drawer[drawerID],motor[motorID][0],0x0F)
 		print "Stopping Motor"
 
-####----Main logic-----#####
+#####----Main despense logic-----#####
 
 while True:
 	try:
@@ -165,3 +168,53 @@ while True:
 		print "Exiting"
 		break
 
+#####----Main Inventory Count logic-----#####
+
+# For Reference
+VL53L0X_REG_IDENTIFICATION_MODEL_ID		= 0x00c0
+VL53L0X_REG_IDENTIFICATION_REVISION_ID		= 0x00c2
+VL53L0X_REG_PRE_RANGE_CONFIG_VCSEL_PERIOD	= 0x0050
+VL53L0X_REG_FINAL_RANGE_CONFIG_VCSEL_PERIOD	= 0x0070
+VL53L0X_REG_SYSRANGE_START			= 0x000
+VL53L0X_REG_RESULT_INTERRUPT_STATUS 		= 0x0013
+VL53L0X_REG_RESULT_RANGE_STATUS 		= 0x0014
+
+# Initialze the device
+bus.write_byte_data(tof_addr, VL53L0X_REG_SYSRANGE_START, 0x01)
+
+# Status of the device
+cnt = 0
+while (cnt < 100): # 1 second waiting time max
+	time.sleep(.1)
+	val = bus.read_byte_data(tof_addr, VL53L0X_REG_RESULT_RANGE_STATUS)
+	if (val & 0x01):
+		break
+	cnt += 1
+
+if (val & 0x01):
+	#print "Device is ready"
+	pass
+else:
+	print "Device is not ready"
+	sys.exit() 
+
+# Get one reading by taking average
+Av_distance = 0
+i = 0;s = 0
+while (i < 100):
+	try:
+		bus.write_byte_data(tof_addr, 0x00, 0x01)
+		data = bus.read_i2c_block_data(tof_addr, 0x14, 16)
+		SensorStatus = ((data[0] & 0x78) >> 3)
+		if SensorStatus == 11:
+			i += 1
+			Av_distance += makeuint16(data[11],data[10])
+		else:
+			s += 1
+		if s > 10000:
+			raise SystemExit	
+	except (SystemExit):
+		print "Out of Range: Error"
+		sys.exit()
+print "Remaining items ",Av_distance/i
+reset_tof()
